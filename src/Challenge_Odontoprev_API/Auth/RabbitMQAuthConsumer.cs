@@ -45,8 +45,8 @@ public class RabbitMQAuthConsumer : BackgroundService
 
         try
         {
-            _connection = await factory.CreateConnectionAsync(cancellationToken);
-            _channel = await _connection.CreateChannelAsync(cancellationToken);
+            _connection = await factory.CreateConnectionAsync();
+            _channel = await _connection.CreateChannelAsync();
 
             // Declare exchange and queues
             await _channel.ExchangeDeclareAsync(
@@ -111,13 +111,13 @@ public class RabbitMQAuthConsumer : BackgroundService
                 await ProcessUserCreatedMessageAsync(message);
 
                 // Ackowledge the message
-                await _channel.BasicAcksAsync(ea.DeliveryTag, false);
+                await _channel.BasicAckAsync(ea.DeliveryTag, false);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error processig user created message");
                 // Negative acknowledge to requeue the message
-                await _channel.BasicAcksAsync(ea.DeliveryTag, false, true);
+                await _channel.BasicNackAsync(ea.DeliveryTag, false, true);
             }
         };
 
@@ -136,13 +136,13 @@ public class RabbitMQAuthConsumer : BackgroundService
                 await ProcessUserLoggedInMessageAsync(message);
 
                 // Ackowledge the message
-                await _channel.BasicAcksAsync(ea.DeliveryTag, false);
+                await _channel.BasicAckAsync(ea.DeliveryTag, false);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error processig user created message");
                 // Negative acknowledge to requeue the message
-                await _channel.BasicAcksAsync(ea.DeliveryTag, false, true);
+                await _channel.BasicNackAsync(ea.DeliveryTag, false, true);
             }
         };
 
@@ -168,7 +168,7 @@ public class RabbitMQAuthConsumer : BackgroundService
 
     private async Task ProcessUserCreatedMessageAsync(string message)
     {
-        var userCreated = JsonConvert.DeserializeObject<UserCreatedEvent>(message);]
+        var userCreated = JsonConvert.DeserializeObject<UserCreatedEvent>(message);
 
         // Add your custom processing logic here
         // For example, syncing user data with your application's user store

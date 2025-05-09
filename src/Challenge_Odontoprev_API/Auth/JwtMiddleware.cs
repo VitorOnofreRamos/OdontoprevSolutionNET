@@ -1,6 +1,7 @@
 ﻿using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Text;
+using Microsoft.AspNetCore.Builder;
 
 namespace Challenge_Odontoprev_API.Auth;
 
@@ -39,6 +40,8 @@ public class JwtMiddleware
                 IssuerSigningKey = new SymmetricSecurityKey(key),
                 ValidateIssuer = true,
                 ValidIssuer = _configuration["JwtSettings:Issuer"],
+                ValidateAudience = true,
+                ValidAudience = _configuration["JwtSettings:Audience"],
                 // Set clockew to zero so token expire exatly at token expiration time
                 ClockSkew = TimeSpan.Zero
             }, out SecurityToken validatedToken);
@@ -59,13 +62,13 @@ public class JwtMiddleware
             // User is not attached to context so the request won't have access to secured endpoints
         }
     }
+}
 
-    // Extension method to use the middleware
-    public static class JwtMiddlewareExtensions
+// Extension method to use the middleware
+public static class JwtMiddlewareExtensions
+{
+    public static IApplicationBuilder UseJwtMiddleware(this IApplicationBuilder builder)
     {
-        public static IApplicationBuilder UseJwtMiddleware(this IApplicationBuilder builder)
-        {
-            return builder.UseMiddleware<JwtMiddleware>();
-        }
+        return builder.UseMiddleware<JwtMiddleware>();
     }
 }
