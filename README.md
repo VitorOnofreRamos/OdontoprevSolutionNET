@@ -66,8 +66,8 @@ OdontoprevSystem/
 
 1. Clone o repositório:
    ```bash
-   git clone https://github.com/seu-usuario/OdontoprevSystem.git
-   cd OdontoprevSystem
+   git clone https://github.com/seu-usuario/OdontoprevSolutionNET.git
+   cd OdontoprevSolutionNET
    ```
 
 2. Inicie os contêineres:
