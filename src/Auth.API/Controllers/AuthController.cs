@@ -175,6 +175,8 @@ public class AuthController : Controller
         }
     }
 
+    [HttpPut("user/{id}")]
+    [Authorize]
     public async Task<IActionResult> UpdateUser(string id, [FromBody] UserUpdateDTO userDto) 
     {
         try
@@ -225,6 +227,9 @@ public class AuthController : Controller
         }
     }
 
+
+    [HttpDelete("users/{id}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> DeleteUser(string id)
     {
         try
@@ -238,7 +243,7 @@ public class AuthController : Controller
         }
         catch (Exception ex)
         {
-            return BadRequest(new { message = $"Errp ao exlcluir usuário: {ex.Message}" });
+            return BadRequest(new { message = $"Erro ao exlcluir usuário: {ex.Message}" });
         }
     }
 

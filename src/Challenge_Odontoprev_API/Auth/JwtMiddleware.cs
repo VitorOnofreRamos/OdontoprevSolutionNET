@@ -8,12 +8,12 @@ namespace Challenge_Odontoprev_API.Auth;
 public class JwtMiddleware
 {
     private readonly RequestDelegate _next;
-    private readonly AuthService _authService;
+    private readonly IConfiguration _configuration;
 
-    public JwtMiddleware(RequestDelegate next, AuthService authService)
+    public JwtMiddleware(RequestDelegate next, IConfiguration configuration)
     {
         _next = next;
-        _authService = authService;
+        _configuration = configuration;
     }
 
     public async Task InvokeAsync(HttpContext context)
@@ -22,20 +22,51 @@ public class JwtMiddleware
 
         if (!string.IsNullOrEmpty(token))
         {
-            //Validar o token
-            var isValid = await _authService.ValidateTokenAsync(token);
-            if (isValid)
+            try
             {
-                //Obter informações do usuário
-                var userInfo = await _authService.GetUserInfoFromTokenAsync(token);
-                if (userInfo != null)
+                // Use the configuration directly rather than AuthService
+                var tokenHandler = new JwtSecurityTokenHandler();
+                var key = Encoding.ASCII.GetBytes(_configuration["JwtSettings:Key"]);
+
+                // Validate token
+                tokenHandler.ValidateToken(token, new TokenValidationParameters
                 {
-                    // Anexar informações do usuário ao contexto
-                    context.Items["UserId"] = userInfo.Id;
-                    context.Items["Username"] = userInfo.Username;
-                    context.Items["UserRole"] = userInfo.Role;
-                    context.Items["UserEmail"] = userInfo.Email;
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = new SymmetricSecurityKey(key),
+                    ValidateIssuer = true,
+                    ValidIssuer = _configuration["JwtSettings:Issuer"],
+                    ValidateAudience = true,
+                    ValidAudience = _configuration["JwtSettings:Audience"],
+                    ClockSkew = TimeSpan.Zero
+                }, out SecurityToken validatedToken);
+
+                var jwtToken = (JwtSecurityToken)validatedToken;
+
+                // Extract user information from token
+                var userId = jwtToken.Claims.FirstOrDefault(x => x.Type == "nameid")?.Value;
+                var username = jwtToken.Claims.FirstOrDefault(x => x.Type == "unique_name")?.Value;
+                var role = jwtToken.Claims.FirstOrDefault(x => x.Type == "role")?.Value;
+                var email = jwtToken.Claims.FirstOrDefault(x => x.Type == "email")?.Value;
+                var cpf = jwtToken.Claims.FirstOrDefault(x => x.Type == "cpf")?.Value;
+                var fone = jwtToken.Claims.FirstOrDefault(x => x.Type == "fone")?.Value;
+                var isActive = jwtToken.Claims.FirstOrDefault(x => x.Type == "active")?.Value == "true";
+
+                // Only attach user info if the account is active
+                if (isActive)
+                {
+                    // Attach user info to context
+                    context.Items["UserId"] = userId;
+                    context.Items["Username"] = username;
+                    context.Items["UserRole"] = role;
+                    context.Items["UserEmail"] = email;
+                    context.Items["UserCPF"] = cpf;
+                    context.Items["UserFone"] = fone;
                 }
+            }
+            catch
+            {
+                // Do nothing if token validation fails
+                // User is not attached to context so the request won't have access to secured endpoints
             }
         }
 
