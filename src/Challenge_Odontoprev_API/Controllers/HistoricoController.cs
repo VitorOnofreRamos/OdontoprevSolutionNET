@@ -64,7 +64,7 @@ public class HistoricoController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = "Admin")]
+    [Authorize("Admin")]
     public async Task<IActionResult> Delete(long id)
     {
         await _repository.Delete(id);

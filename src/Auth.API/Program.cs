@@ -14,13 +14,6 @@ builder.Services.Configure<MongoDBSettings>(
     builder.Configuration.GetSection("MongoDBSettings"));
 builder.Services.AddSingleton<MongoDBContext>();
 
-// Configure RabbitMQ
-builder.Services.Configure<RabbitMQSettings>(
-    builder.Configuration.GetSection("RabbitMQSettings"));
-builder.Services.AddSingleton<RabbitMQService>();
-
-// Configure Auth Service and Token Service
-builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<TokenService>();
 
 // Configure JWT Authentication

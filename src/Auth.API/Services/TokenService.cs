@@ -33,15 +33,26 @@ public class TokenService
 
         var expiration = DateTime.UtcNow.AddMinutes(jwtExpireMinutes);
 
+        var claims = new List<Claim>
+        {
+            new Claim(ClaimTypes.NameIdentifier, user.Id),
+            new Claim(ClaimTypes.Name, user.Username),
+            new Claim(ClaimTypes.Email, user.Email),
+            new Claim(ClaimTypes.Role, user.Role),
+        };
+
+        // Adicionar CPF como claim opcional
+        if (!string.IsNullOrEmpty(user.CPF))
+        {
+            claims.Add(new Claim("cpf", user.CPF));
+        }
+
+        // Adicionar status ativo
+        claims.Add(new Claim("active", user.Active.ToString().ToLower()));
+
         var tokenDescriptor = new SecurityTokenDescriptor
         {
-            Subject = new ClaimsIdentity(new Claim[]
-            {
-                new Claim(ClaimTypes.NameIdentifier, user.Id),
-                new Claim(ClaimTypes.Name, user.Username),
-                new Claim(ClaimTypes.Email, user.Email),
-                new Claim(ClaimTypes.Role, user.Role)
-            }),
+            Subject = new ClaimsIdentity(claims),
             Expires = expiration,
             Issuer = jwtIssuer,
             Audience = jwtAudience,
@@ -57,6 +68,9 @@ public class TokenService
             Token = tokenHandler.WriteToken(token),
             Expiration = expiration,
             Username = user.Username,
+            Email = user.Email,
+            CPF = user.CPF,
+            Phone = user.Phone,
             Role = user.Role
         };
     }

@@ -16,22 +16,6 @@ services:
       - odontoprev-network
     restart: unless-stopped
 
-  # Message broker RabbitMQ
-  rabbitmq:
-    image: rabbitmq:3-management
-    container_name: odontoprev-rabbitmq
-    ports:
-      - "5672:5672"   # Porta AMQP
-      - "15672:15672" # Porta de gerenciamento
-    environment:
-      - RABBITMQ_DEFAULT_USER=guest
-      - RABBITMQ_DEFAULT_PASS=guest
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
-    networks:
-      - odontoprev-network
-    restart: unless-stopped
-
   # Auth.API - Servico de autenticacao
   auth-api:
     build:
@@ -44,20 +28,12 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
       - MongoDBSettings__ConnectionString=mongodb://admin:adminpassword@mongodb:27017
       - MongoDBSettings__DatabaseName=OdontoprevAuth
-      - RabbitMQSettings__HostName=rabbitmq
-      - RabbitMQSettings__UserName=guest
-      - RabbitMQSettings__Password=guest
-      - RabbitMQSettings__Port=5672
-      - RabbitMQSettings__AuthExchange=auth_exchange
-      - RabbitMQSettings__UserCreatedQueue=user_created_queue
-      - RabbitMQSettings__UserLoggedInQueue=user_loggedin_queue
       - JwtSettings__Key=QaEaH3mDHuQRXBTk2wmRsGG6VrZt4Qe2
       - JwtSettings__Issuer=OdontoprevAuthAPI
       - JwtSettings__Audience=OdontoprevApps
       - JwtSettings__ExpireMinutes=60
     depends_on:
       - mongodb
-      - rabbitmq
     networks:
       - odontoprev-network
     restart: unless-stopped
@@ -73,19 +49,11 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__OracleConnection=Data Source=//oracle.fiap.com.br:1521/orcl;User Id=rm553241; Password=220405;
-      - RabbitMQSettings__HostName=rabbitmq
-      - RabbitMQSettings__UserName=guest
-      - RabbitMQSettings__Password=guest
-      - RabbitMQSettings__Port=5672
-      - RabbitMQSettings__AuthExchange=auth_exchange
-      - RabbitMQSettings__UserCreatedQueue=user_created_queue
-      - RabbitMQSettings__UserLoggedInQueue=user_loggedin_queue
       - JwtSettings__Key=QaEaH3mDHuQRXBTk2wmRsGG6VrZt4Qe2
       - JwtSettings__Issuer=OdontoprevAuthAPI
       - JwtSettings__Audience=OdontoprevApps
       - JwtSettings__ExpireMinutes=60
     depends_on:
-      - rabbitmq
       - auth-api
     networks:
       - odontoprev-network
@@ -99,4 +67,3 @@ networks:
 # Define os volumes - esta secao deve estar no mesmo nivel que 'services', nao dentro dela
 volumes:
   mongodb_data:
-  rabbitmq_data:

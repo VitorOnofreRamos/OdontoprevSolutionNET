@@ -1,8 +1,6 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
-using RabbitMQ.Client;
-using RabbitMQ.Client.Events;
 using Microsoft.EntityFrameworkCore;
 using Challenge_Odontoprev_API.Repositories;
 using Challenge_Odontoprev_API.Services;
@@ -27,6 +25,10 @@ builder.Services.AddScoped(typeof(_IRepository<>), typeof(_Repository<>));
 
 builder.Services.AddScoped<_IService, _Service>();
 
+builder.Services.AddHttpClient();
+
+builder.Services.AddScoped<AuthService>();
+
 builder.Services.AddControllers().AddNewtonsoftJson();
 
 // Adicionar autenticação JWT
@@ -35,30 +37,16 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     {
         options.TokenValidationParameters = new TokenValidationParameters
         {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            ValidIssuer = builder.Configuration["JwtSettings:Issuer"],
-            ValidAudience = builder.Configuration["JwtSettings:Audience"],
             IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.ASCII.GetBytes(builder.Configuration["JwtSettings:Key"]))
+                Encoding.ASCII.GetBytes(builder.Configuration["JwtSettings:Key"])),
+            ValidateIssuer = true,
+            ValidIssuer = builder.Configuration["JwtSettings:Issuer"],
+            ValidateAudience = true,
+            ValidAudience = builder.Configuration["JwtSettings:Audience"],
+            ClockSkew = TimeSpan.Zero
         };
     });
-
-// Configurar RabbitMQ Consumer para mensagens de autenticação
-builder.Services.AddSingleton<IConnectionFactory>(sp =>
-{
-    return new ConnectionFactory
-    {
-        HostName = builder.Configuration["RabbitMQSettings:HostName"],
-        UserName = builder.Configuration["RabbitMQSettings:UserName"],
-        Password = builder.Configuration["RabbitMQSettings:Password"],
-        Port = int.Parse(builder.Configuration["RabbitMQSettings:Port"])
-    };
-});
-
-builder.Services.AddHostedService<RabbitMQAuthConsumer>();
 
 builder.Services.AddSwaggerGen(c =>
 {
@@ -87,7 +75,6 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.UseAuthorization();
-app.UseAuthentication();
 
 app.UseJwtMiddleware();
 
