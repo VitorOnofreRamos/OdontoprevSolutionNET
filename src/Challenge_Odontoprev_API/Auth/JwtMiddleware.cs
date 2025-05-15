@@ -1,19 +1,18 @@
-﻿using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
-using System.Text;
-using Microsoft.AspNetCore.Builder;
+﻿using Microsoft.Extensions.Configuration;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
+using System;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Challenge_Odontoprev_API.Auth;
 
 public class JwtMiddleware
 {
     private readonly RequestDelegate _next;
-    private readonly IConfiguration _configuration;
 
-    public JwtMiddleware(RequestDelegate next, IConfiguration configuration)
+    public JwtMiddleware(RequestDelegate next)
     {
         _next = next;
-        _configuration = configuration;
     }
 
     public async Task InvokeAsync(HttpContext context)
@@ -24,49 +23,35 @@ public class JwtMiddleware
         {
             try
             {
-                // Use the configuration directly rather than AuthService
-                var tokenHandler = new JwtSecurityTokenHandler();
-                var key = Encoding.ASCII.GetBytes(_configuration["JwtSettings:Key"]);
+                // Obter o serviço AuthService do escopo atual
+                var authService = context.RequestServices.GetRequiredService<AuthService>();
 
-                // Validate token
-                tokenHandler.ValidateToken(token, new TokenValidationParameters
+                // Validar token com o Auth.API
+                var isValid = await authService.ValidateTokenAsync(token);
+
+                if (isValid)
                 {
-                    ValidateIssuerSigningKey = true,
-                    IssuerSigningKey = new SymmetricSecurityKey(key),
-                    ValidateIssuer = true,
-                    ValidIssuer = _configuration["JwtSettings:Issuer"],
-                    ValidateAudience = true,
-                    ValidAudience = _configuration["JwtSettings:Audience"],
-                    ClockSkew = TimeSpan.Zero
-                }, out SecurityToken validatedToken);
+                    // Obter informações do usuário do token
+                    var userInfo = await authService.GetUserInfoFromTokenAsync(token);
 
-                var jwtToken = (JwtSecurityToken)validatedToken;
-
-                // Extract user information from token
-                var userId = jwtToken.Claims.FirstOrDefault(x => x.Type == "nameid")?.Value;
-                var username = jwtToken.Claims.FirstOrDefault(x => x.Type == "unique_name")?.Value;
-                var role = jwtToken.Claims.FirstOrDefault(x => x.Type == "role")?.Value;
-                var email = jwtToken.Claims.FirstOrDefault(x => x.Type == "email")?.Value;
-                var cpf = jwtToken.Claims.FirstOrDefault(x => x.Type == "cpf")?.Value;
-                var fone = jwtToken.Claims.FirstOrDefault(x => x.Type == "fone")?.Value;
-                var isActive = jwtToken.Claims.FirstOrDefault(x => x.Type == "active")?.Value == "true";
-
-                // Only attach user info if the account is active
-                if (isActive)
-                {
-                    // Attach user info to context
-                    context.Items["UserId"] = userId;
-                    context.Items["Username"] = username;
-                    context.Items["UserRole"] = role;
-                    context.Items["UserEmail"] = email;
-                    context.Items["UserCPF"] = cpf;
-                    context.Items["UserFone"] = fone;
+                    if (userInfo != null && userInfo.Active)
+                    {
+                        // Adicionar informações do usuário ao contexto
+                        context.Items["UserId"] = userInfo.Id;
+                        context.Items["Username"] = userInfo.Username;
+                        context.Items["UserRole"] = userInfo.Role;
+                        context.Items["UserEmail"] = userInfo.Email;
+                        context.Items["UserCPF"] = userInfo.CPF;
+                        context.Items["UserPhone"] = userInfo.Phone;
+                    }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Do nothing if token validation fails
-                // User is not attached to context so the request won't have access to secured endpoints
+                // Log da exceção, mas continua o fluxo
+                Console.WriteLine($"Erro ao processar token JWT: {ex.Message}");
+                // As informações do usuário não serão adicionadas ao contexto
+                // e as solicitações para endpoints protegidos serão rejeitadas
             }
         }
 
@@ -81,4 +66,4 @@ public static class JwtMiddlewareExtensions
     {
         return builder.UseMiddleware<JwtMiddleware>();
     }
-};
+}

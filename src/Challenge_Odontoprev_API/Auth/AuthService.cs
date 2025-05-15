@@ -22,85 +22,41 @@ public class AuthService
     {
         _configuration = configuration;
         _httpClientFactory = httpClientFactory;
-        _authApiUrl = _configuration["AuthSettings:ApiUrl"] ?? "http//auth-api";
+        _authApiUrl = _configuration["AuthSettings:ApiUrl"] ?? "http://auth-api";
     }
 
-    public async Task<bool> ValidateTokenAsync(string token)
+    public async Task<string> RegisterUserAsync(string username, string email, string cpf, string password, string phone, string role = "User")
     {
-        if (string.IsNullOrEmpty(token))
-            return false;
-
-        try
+        var httpClient = _httpClientFactory.CreateClient();
+        var response = await httpClient.PostAsJsonAsync($"{_authApiUrl}/api/auth/create-user", new
         {
-            var tokenHandler = new JwtSecurityTokenHandler();
-            var key = Encoding.ASCII.GetBytes(_configuration["JwtSettings:Key"]);
+            Username = username,
+            Email = email,
+            CPF = cpf,
+            Password = password,
+            Phone = phone,
+            Role = role,
+            Active = true
+        });
 
-            // Validar token localmente
-            tokenHandler.ValidateToken(token, new TokenValidationParameters
+        if (response.IsSuccessStatusCode)
+        {
+            var content = await response.Content.ReadAsStringAsync();
+            var createUserResponse = JsonSerializer.Deserialize<CreateUserResponse>(content, new JsonSerializerOptions
             {
-                ValidateIssuerSigningKey = true,
-                IssuerSigningKey = new SymmetricSecurityKey(key),
-                ValidateIssuer = true,
-                ValidIssuer = _configuration["JwtSettings:Issuer"],
-                ValidateAudience = true,
-                ValidAudience = _configuration["JwtSettings:Audience"],
-                ClockSkew = TimeSpan.Zero
-            }, out SecurityToken validatedToken);
+                PropertyNameCaseInsensitive = true
+            });
 
-            // Verificar se o usuário está ativo
-            var jwtToken = (JwtSecurityToken)validatedToken;
-            var isActive = jwtToken.Claims.FirstOrDefault(x => x.Type == "active")?.Value;
+            return createUserResponse?.UserId;
+        }
 
-            return isActive == "true";
-        }
-        catch
-        {
-            return false;
-        }
+        return null;
     }
 
-    public async Task<UserInfo> GetUserInfoFromTokenAsync(string token)
+    public async Task<string> AuthenticateAsync(string username, string password)
     {
-        if (string.IsNullOrEmpty(token))
-            return null;
-
-        try
-        {
-            var tokenHandler = new JwtSecurityTokenHandler();
-            var jwtToken = tokenHandler.ReadJwtToken(token);
-
-            var userId = jwtToken.Claims.FirstOrDefault(x => x.Type == "nameid")?.Value;
-            var username = jwtToken.Claims.FirstOrDefault(x => x.Type == "unique_name")?.Value;
-            var role = jwtToken.Claims.FirstOrDefault(x => x.Type == "role")?.Value;
-            var email = jwtToken.Claims.FirstOrDefault(x => x.Type == "email")?.Value;
-            var cpf = jwtToken.Claims.FirstOrDefault(x => x.Type == "cpf")?.Value;
-            var phone = jwtToken.Claims.FirstOrDefault(x => x.Type == "phone")?.Value;
-            var isActive = jwtToken.Claims.FirstOrDefault(x => x.Type == "active")?.Value == "true";
-
-            if (!isActive)
-                return null;
-
-            return new UserInfo
-            {
-                Id = userId,
-                Username = username,
-                Email = email,
-                CPF = cpf,
-                Phone = phone,
-                Role = role,
-                Active = isActive
-            };
-        }
-        catch
-        {
-            return null;
-        }
-    }        
-
-    public async Task<string> LoginAsync(string username, string password)
-    {
-        var httClient = _httpClientFactory.CreateClient();
-        var response = await httClient.PostAsJsonAsync($"{_authApiUrl}/api/auth/login", new
+        var httpClient = _httpClientFactory.CreateClient();
+        var response = await httpClient.PostAsJsonAsync($"{_authApiUrl}/api/auth/authenticate", new
         {
             Username = username,
             Password = password
@@ -120,45 +76,93 @@ public class AuthService
         return null;
     }
 
-    public async Task<bool> RegisterAsync(string username, string email, string cpf, string password, string phone, string role = "User")
+    public async Task<bool> ValidateTokenAsync(string token)
     {
-        var httpClient = _httpClientFactory.CreateClient();
-        var response = await httpClient.PostAsJsonAsync($"{_authApiUrl}/api/auth/register", new
+        if (string.IsNullOrEmpty(token))
+            return false;
+
+        try
         {
-            Username = username,
-            Email = email,
-            CPF = cpf,
-            Phone = phone,
-            Role = role,
-            Active = true
-        });
-
-        return response.IsSuccessStatusCode;
-    }
-
-    public async Task<UserInfo[]> GetAllUsersAsync(string token)
-    {
-        var httpClient = _httpClientFactory.CreateClient();
-        httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-
-        var response = await httpClient.GetAsync($"{_authApiUrl}/api/auth/users");
-
-        if (response.IsSuccessStatusCode)
-        {
-            var content = await response.Content.ReadAsStringAsync();
-            var users = JsonSerializer.Deserialize<UserInfo[]>(content, new JsonSerializerOptions
+            var httpClient = _httpClientFactory.CreateClient();
+            var response = await httpClient.PostAsJsonAsync($"{_authApiUrl}/api/auth/validate", new
             {
-                PropertyNameCaseInsensitive = true
+                Token = token
             });
 
-            return users;
+            return response.IsSuccessStatusCode;
         }
+        catch
+        {
+            return false;
+        }
+    }
 
-        return Array.Empty<UserInfo>();
+    public async Task<UserInfo> GetUserInfoFromTokenAsync(string token)
+    {
+        if (string.IsNullOrEmpty(token))
+            return null;
+
+        try
+        {
+            var httpClient = _httpClientFactory.CreateClient();
+            var response = await httpClient.PostAsJsonAsync($"{_authApiUrl}/api/auth/validate", new
+            {
+                Token = token
+            });
+
+            if (response.IsSuccessStatusCode)
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                var userInfo = JsonSerializer.Deserialize<UserInfo>(content, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+                return userInfo;
+            }
+
+            return null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public async Task<string> RefreshTokenAsync(string token)
+    {
+        if (string.IsNullOrEmpty(token))
+            return null;
+
+        try
+        {
+            var httpClient = _httpClientFactory.CreateClient();
+            var response = await httpClient.PostAsJsonAsync($"{_authApiUrl}/api/auth/refresh", new
+            {
+                Token = token
+            });
+
+            if (response.IsSuccessStatusCode)
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                var tokenResponse = JsonSerializer.Deserialize<TokenResponse>(content, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+                return tokenResponse?.Token;
+            }
+
+            return null;
+        }
+        catch
+        {
+            return null;
+        }
     }
 }
 
-// Classes para deserialização de eventos
+// Classes para deserialização de respostas
 public class UserInfo
 {
     public string Id { get; set; }
@@ -167,8 +171,6 @@ public class UserInfo
     public string CPF { get; set; }
     public string Phone { get; set; }
     public string Role { get; set; }
-    public DateTime CreatedAt { get; set; }
-    public DateTime? LastLogin { get; set; }
     public bool Active { get; set; }
 }
 
@@ -177,7 +179,13 @@ public class TokenResponse
     public string Token { get; set; }
     public DateTime Expiration { get; set; }
     public string Username { get; set; }
+    public string Email { get; set; }
     public string CPF { get; set; }
     public string Phone { get; set; }
     public string Role { get; set; }
+}
+
+public class CreateUserResponse
+{
+    public string UserId { get; set; }
 }

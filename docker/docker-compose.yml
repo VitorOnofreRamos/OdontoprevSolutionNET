@@ -15,8 +15,13 @@ services:
     networks:
       - odontoprev-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongo", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  # Auth.API - Servico de autenticacao
+  # Auth.API - Serviço de autenticação (secundário)
   auth-api:
     build:
       context: ../src/Auth.API
@@ -33,10 +38,17 @@ services:
       - JwtSettings__Audience=OdontoprevApps
       - JwtSettings__ExpireMinutes=60
     depends_on:
-      - mongodb
+      mongodb:
+        condition: service_healthy
     networks:
       - odontoprev-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
 
   # Challenge_Odontoprev_API - API principal
   odontoprev-api:
@@ -54,16 +66,15 @@ services:
       - JwtSettings__Audience=OdontoprevApps
       - JwtSettings__ExpireMinutes=60
     depends_on:
-      - auth-api
+      auth-api:
+        condition: service_healthy
     networks:
       - odontoprev-network
     restart: unless-stopped
 
-# Define as redes - esta secao deve estar no mesmo nivel que 'services', nao dentro dela
 networks:
   odontoprev-network:
     driver: bridge
 
-# Define os volumes - esta secao deve estar no mesmo nivel que 'services', nao dentro dela
 volumes:
   mongodb_data:
