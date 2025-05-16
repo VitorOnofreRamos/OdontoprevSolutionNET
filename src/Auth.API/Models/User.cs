@@ -29,7 +29,7 @@ public class User
     public string Phone { get; set; }
 
     [BsonElement("Role")]
-    public string Role {  get; set; }
+    public string Role { get; set; }
 
     [BsonElement("CreatedAt")]
     public DateTime CreatedAt { get; set; }
@@ -38,5 +38,5 @@ public class User
     public DateTime? LastLogin { get; set; }
 
     [BsonElement("Active")]
-    public bool Active { get; set; } = true;
+    public bool Active { get; set; }
 }

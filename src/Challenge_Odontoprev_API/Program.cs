@@ -1,12 +1,15 @@
 // Challenge_Odontoprev_API/Program.cs
-using Challenge_Odontoprev_API.Auth;
+using Challenge_Odontoprev_API;
 using Challenge_Odontoprev_API.Infrastructure;
 using Challenge_Odontoprev_API.Mappings;
 using Challenge_Odontoprev_API.Models;
 using Challenge_Odontoprev_API.Repositories;
 using Challenge_Odontoprev_API.Services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using System.Text;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -28,9 +31,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 
 // Configurar HTTP Client Factory
 builder.Services.AddHttpClient();
-
-// Configurar serviço de autenticação
-builder.Services.AddScoped<AuthService>();
+;
 
 // Configurar AutoMapper
 builder.Services.AddAutoMapper(typeof(AutoMapperProfile));
@@ -85,6 +86,43 @@ builder.Services.AddScoped<_IRepository<HistoricoConsulta>, _Repository<Historic
 // Configurar Unit of Work
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
+builder.Services.AddHttpClient<IUserValidationService, UserValidationService>();
+
+
+// Configure JWT Authentication - Make sure to use the SAME secret key as in OdontoprevAuth
+var jwtSettings = builder.Configuration.GetSection("JwtSettings");
+var key = Encoding.ASCII.GetBytes(jwtSettings["Secret"]);
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.RequireHttpsMetadata = false;
+    options.SaveToken = true;
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuerSigningKey = true,
+        IssuerSigningKey = new SymmetricSecurityKey(key),
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidIssuer = jwtSettings["Issuer"],
+        ValidAudience = jwtSettings["Audience"]
+    };
+});
+
+// Add authorization policies if needed
+builder.Services.AddAuthorization(options =>
+{
+    // Add policy for Admin users
+    options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
+
+    // Add policy for all authenticated users
+    options.AddPolicy("AuthenticatedUsers", policy => policy.RequireAuthenticatedUser());
+});
+
 var app = builder.Build();
 
 // Configurar o pipeline de requisições HTTP
@@ -96,9 +134,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-// Usar middleware de autenticação JWT personalizado antes do middleware de autorização
-app.UseJwtMiddleware();
-
+app.UseAuthentication();
+app.UseActiveUserMiddleware();
 app.UseAuthorization();
 
 app.MapControllers();
