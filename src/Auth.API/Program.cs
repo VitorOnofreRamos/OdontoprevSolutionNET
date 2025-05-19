@@ -1,5 +1,5 @@
-using Auth.API.Configuration;
 using Auth.API.Services;
+using Auth.API.Settings;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -7,60 +7,73 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container
-builder.Services.Configure<MongoDbSettings>(
-    builder.Configuration.GetSection("MongoDbSettings"));
-
-builder.Services.Configure<JwtSettings>(
-    builder.Configuration.GetSection("JwtSettings"));
-
-// Add JWT Authentication
-var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>();
-var key = Encoding.ASCII.GetBytes(jwtSettings.Secret);
-
-builder.Services.AddAuthentication(options =>
+// Configurações do banco de dados
+var databaseSettings = new DatabaseSettings
 {
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    ConnectionString = builder.Configuration.GetSection("DatabaseSettings:ConnectionString").Value,
+    DatabaseName = "OdontoprevAuth",
+    UsersCollectionName = "Users"
+};
+builder.Services.AddSingleton(databaseSettings);
+
+// Configurações de serviços
+builder.Services.AddSingleton<UserService>();
+builder.Services.AddSingleton<AuthService>(provider =>
+{
+    var userService = provider.GetRequiredService<UserService>();
+    var jwtSecret = builder.Configuration["JwtSettings:Secret"];
+    var jwtExpirationMinutes = int.Parse(builder.Configuration["JwtSettings:ExpirationMinutes"]);
+    return new AuthService(userService, jwtSecret, jwtExpirationMinutes);
+});
+
+// Configuração do JWT
+var jwtSecret = builder.Configuration["JwtSettings:Secret"];
+var key = Encoding.ASCII.GetBytes(jwtSecret);
+builder.Services.AddAuthentication(x =>
+{
+    x.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    x.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
 })
-.AddJwtBearer(options =>
+.AddJwtBearer(x =>
 {
-    options.RequireHttpsMetadata = false;
-    options.SaveToken = true;
-    options.TokenValidationParameters = new TokenValidationParameters
+    x.RequireHttpsMetadata = false;
+    x.SaveToken = true;
+    x.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuerSigningKey = true,
         IssuerSigningKey = new SymmetricSecurityKey(key),
         ValidateIssuer = true,
+        ValidIssuer = "Auth.API",
         ValidateAudience = true,
-        ValidIssuer = jwtSettings.Issuer,
-        ValidAudience = jwtSettings.Audience
+        ValidAudience = "OdontoprevClients",
+        RoleClaimType = "Role"
+    };
+    x.Events = new JwtBearerEvents
+    {
+        OnAuthenticationFailed = context =>
+        {
+            Console.WriteLine("Token inválido: " + context.Exception.Message);
+            return Task.CompletedTask;
+        }
     };
 });
 
-// Register services
-builder.Services.AddSingleton<IUserService, UserService>();
-builder.Services.AddSingleton<IJwtService, JwtService>();
-
 builder.Services.AddControllers();
-
-// Add Swagger
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new OpenApiInfo { Title = "OdontoprevAuth API", Version = "v1" });
-
-    // Define JWT security scheme
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Auth.API", Version = "v1" });
+    
+    // Adiciona a configuração de segurança do JWT
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
-        Description = "JWT Authorization header using the Bearer scheme",
+        Description = "JWT Authorization header usando o esquema Bearer. Exemplo: \"Authorization: Bearer {token}\"",
         Name = "Authorization",
         In = ParameterLocation.Header,
-        Type = SecuritySchemeType.Http,
-        Scheme = "bearer"
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer"
     });
 
-    // Add JWT security requirement
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
         {
@@ -77,19 +90,9 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// Configure CORS
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowAll",
-        builder => builder
-            .AllowAnyOrigin()
-            .AllowAnyMethod()
-            .AllowAnyHeader());
-});
-
 var app = builder.Build();
 
-// Configure the HTTP request pipeline
+// Configure middleware
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -97,10 +100,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseCors("AllowAll");
 app.UseAuthentication();
 app.UseAuthorization();
-
 app.MapControllers();
 
 app.Run();

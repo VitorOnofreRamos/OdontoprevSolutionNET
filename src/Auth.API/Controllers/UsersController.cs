@@ -1,79 +1,127 @@
-﻿using Auth.API.Models;
+﻿using Auth.API.DTOs;
+using Auth.API.Models;
 using Auth.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Security.Claims;
+using System.Threading.Tasks;
 
-namespace Auth.API.Controllers;
-
-[ApiController]
-[Route("api/[controller]")]
-[Authorize]
-public class UsersController : ControllerBase
+namespace Auth.API.Controllers
 {
-    private readonly IUserService _userService;
-
-    public UsersController(IUserService userService)
+    [ApiController]
+    [Route("api/[controller]")]
+    [Authorize]
+    public class UsersController : ControllerBase
     {
-        _userService = userService;
-    }
+        private readonly UserService _userService;
 
-    [HttpGet]
-    [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> GetAllUsers()
-    {
-        var users = await _userService.GetAllUsersAsync();
-        return Ok(users);
-    }
-
-    [HttpGet("{id}")]
-    public async Task<IActionResult> GetUserById(string id)
-    {
-        var user = await _userService.GetUserByIdAsync(id);
-        if (user == null)
+        public UsersController(UserService userService)
         {
-            return NotFound(new { message = "User not found" });
+            _userService = userService;
         }
 
-        // Check if user is requesting their own data or is an admin
-        var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-        var isAdmin = User.IsInRole("Admin");
-
-        if (id != currentUserId && !isAdmin)
+        // Obter usuário atual por token
+        [HttpGet("me")]
+        public async Task<ActionResult<UserDTO>> GetCurrentUser()
         {
-            return Forbid();
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized();
+            }
+
+            var user = await _userService.GetByIdAsync(userId);
+            if (user == null)
+            {
+                return NotFound();
+            }
+
+            return Ok(MapToUserDto(user));
         }
 
-        return Ok(user);
-    }
-
-    [HttpPut("{id}")]
-    [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> UpdateUser(string id, [FromBody] UpdateUserModel model)
-    {
-        if (!ModelState.IsValid)
+        // Obter usuário por ID (somente admin)
+        [HttpGet("{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<UserDTO>> GetById(string id)
         {
-            return BadRequest(new { message = "Invalid data" });
+            var user = await _userService.GetByIdAsync(id);
+
+            if (user == null)
+            {
+                return NotFound();
+            }
+
+            return MapToUserDto(user);
         }
 
-        var updatedUser = await _userService.UpdateUserAsync(id, model);
-        if (updatedUser == null)
+        // Obter todos os usuários (somente admin)
+        [HttpGet]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<IEnumerable<UserDTO>>> GetAll()
         {
-            return NotFound(new { message = "User not found" });
+            var users = await _userService.GetAllAsync();
+            return users.Select(u => MapToUserDto(u)).ToList();
         }
 
-        return Ok(updatedUser);
-    }
-
-    [HttpDelete("{id}")]
-    [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> DeleteUser(string id)
-    {
-        var result = await _userService.DeleteUserAsync(id);
-        if (!result)
+        // Atualizar usuário (somente admin)
+        [HttpPut("{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Update(string id, UpdateUserDTO updateDto)
         {
-            return NotFound(new { message = "User not found" });
+            var user = await _userService.GetByIdAsync(id);
+
+            if (user == null)
+            {
+                return NotFound();
+            }
+
+            // Atualizar campos
+            user.Username = updateDto.Username ?? user.Username;
+            user.Email = updateDto.Email ?? user.Email;
+            user.CPF = updateDto.CPF ?? user.CPF;
+            user.Phone = updateDto.Phone ?? user.Phone;
+            user.Role = updateDto.Role ?? user.Role;
+            user.Active = updateDto.Active;
+
+            await _userService.UpdateAsync(id, user);
+
+            return NoContent();
         }
 
-        return Ok(new { message = "User deleted successfully" });
+        // Excluir usuário (somente admin)
+        [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Delete(string id)
+        {
+            var user = await _userService.GetByIdAsync(id);
+
+            if (user == null)
+            {
+                return NotFound();
+            }
+
+            await _userService.RemoveAsync(id);
+
+            return NoContent();
+        }
+
+        private UserDTO MapToUserDto(User user)
+        {
+            return new UserDTO
+            {
+                Id = user.Id,
+                Username = user.Username,
+                Email = user.Email,
+                CPF = user.CPF,
+                Phone = user.Phone,
+                Role = user.Role,
+                CreatedAt = user.CreatedAt,
+                LastLogin = user.LastLogin,
+                Active = user.Active
+            };
+        }
     }
 }
