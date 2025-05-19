@@ -9,7 +9,6 @@ namespace Challenge_Odontoprev_API.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
-[Authorize]
 public class PacienteController : ControllerBase
 {
     private readonly _IRepository<Paciente> _repository;
@@ -64,7 +63,6 @@ public class PacienteController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize("Admin")]
     public async Task<IActionResult> Delete(long id)
     {
         await _repository.Delete(id);

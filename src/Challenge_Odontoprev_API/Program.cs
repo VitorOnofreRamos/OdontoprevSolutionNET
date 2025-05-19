@@ -14,7 +14,7 @@ using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Adicionar serviços ao contêiner
+// Adicionar serviï¿½os ao contï¿½iner
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
@@ -22,7 +22,7 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
     });
 
-// Configurar conexão com o banco de dados Oracle
+// Configurar conexï¿½o com o banco de dados Oracle
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseOracle(
         builder.Configuration.GetConnectionString("OracleConnection")
@@ -44,39 +44,14 @@ builder.Services.AddSwaggerGen(c =>
     {
         Title = "Odontoprev API",
         Version = "v1",
-        Description = "API para gerenciamento de clínicas odontológicas"
-    });
-
-    // Configurar o Swagger para usar o JWT Bearer token
-    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
-    {
-        Description = "JWT Authorization header using the Bearer scheme. Enter 'Bearer' [space] and then your token in the text input below.",
-        Name = "Authorization",
-        In = ParameterLocation.Header,
-        Type = SecuritySchemeType.ApiKey,
-        Scheme = "Bearer"
-    });
-
-    c.AddSecurityRequirement(new OpenApiSecurityRequirement
-    {
-        {
-            new OpenApiSecurityScheme
-            {
-                Reference = new OpenApiReference
-                {
-                    Type = ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                }
-            },
-            Array.Empty<string>()
-        }
+        Description = "API para gerenciamento de clÃ­nicas odontolÃ³gicas"
     });
 });
 
-// Configurar serviços de negócio
+// Configurar serviï¿½os de negï¿½cio
 builder.Services.AddScoped<_IService, _Service>();
 
-// Configurar repositórios
+// Configurar repositï¿½rios
 builder.Services.AddScoped(typeof(_IRepository<>), typeof(_Repository<>));
 builder.Services.AddScoped<_IRepository<Paciente>, _Repository<Paciente>>();
 builder.Services.AddScoped<_IRepository<Dentista>, _Repository<Dentista>>();
@@ -86,46 +61,9 @@ builder.Services.AddScoped<_IRepository<HistoricoConsulta>, _Repository<Historic
 // Configurar Unit of Work
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
-builder.Services.AddHttpClient<IUserValidationService, UserValidationService>();
-
-
-// Configure JWT Authentication - Make sure to use the SAME secret key as in OdontoprevAuth
-var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-var key = Encoding.ASCII.GetBytes(jwtSettings["Secret"]);
-
-builder.Services.AddAuthentication(options =>
-{
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-})
-.AddJwtBearer(options =>
-{
-    options.RequireHttpsMetadata = false;
-    options.SaveToken = true;
-    options.TokenValidationParameters = new TokenValidationParameters
-    {
-        ValidateIssuerSigningKey = true,
-        IssuerSigningKey = new SymmetricSecurityKey(key),
-        ValidateIssuer = true,
-        ValidateAudience = true,
-        ValidIssuer = jwtSettings["Issuer"],
-        ValidAudience = jwtSettings["Audience"]
-    };
-});
-
-// Add authorization policies if needed
-builder.Services.AddAuthorization(options =>
-{
-    // Add policy for Admin users
-    options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
-
-    // Add policy for all authenticated users
-    options.AddPolicy("AuthenticatedUsers", policy => policy.RequireAuthenticatedUser());
-});
-
 var app = builder.Build();
 
-// Configurar o pipeline de requisições HTTP
+// Configurar o pipeline de requisiï¿½ï¿½es HTTP
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -135,8 +73,6 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.UseAuthentication();
-app.UseActiveUserMiddleware();
-app.UseAuthorization();
 
 app.MapControllers();
 
