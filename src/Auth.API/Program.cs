@@ -92,6 +92,14 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
+// LOG DO HEADER AUTHORIZATION
+app.Use(async (context, next) =>
+{
+    var authHeader = context.Request.Headers["Authorization"].ToString();
+    Console.WriteLine($"Authorization header recebido: '{authHeader}'");
+    await next();
+});
+
 // Configure middleware
 if (app.Environment.IsDevelopment())
 {

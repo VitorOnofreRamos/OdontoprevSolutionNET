@@ -91,6 +91,7 @@ namespace Auth.API.Services
 
         private string GenerateJwtToken(User user)
         {
+            Console.WriteLine($"JWT Secret used: '{_jwtSecret}'");
             var tokenHandler = new JwtSecurityTokenHandler();
             var key = Encoding.ASCII.GetBytes(_jwtSecret);
 
