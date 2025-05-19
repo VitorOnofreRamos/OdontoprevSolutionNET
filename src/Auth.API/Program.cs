@@ -52,13 +52,16 @@ builder.Services.AddAuthentication(options =>
         ValidateAudience = true,
         ValidAudience = "OdontoprevClients",
         ValidateLifetime = true,
-        ClockSkew = TimeSpan.Zero
+        ClockSkew = TimeSpan.Zero,
+        // Adiciona mapeamento para ClaimTypes padrão
+        NameClaimType = "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name",
+        RoleClaimType = "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"
     };
     options.Events = new JwtBearerEvents
     {
         OnAuthenticationFailed = context =>
         {
-            Console.WriteLine("Token inválido: " + context.Exception.Message);
+            Console.WriteLine("Token inválido: " + context.Exception.ToString());
             return Task.CompletedTask;
         },
         OnMessageReceived = context =>
@@ -68,7 +71,7 @@ builder.Services.AddAuthentication(options =>
         },
         OnTokenValidated = context =>
         {
-            Console.WriteLine("Token validado com sucesso!");
+            Console.WriteLine($"Token validado com sucesso para o usuário: {context.Principal?.Identity?.Name}");
             return Task.CompletedTask;
         }
     };

@@ -7,6 +7,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.IdentityModel.Tokens;
+using System.Collections.Generic;
 
 namespace Auth.API.Services
 {
@@ -91,26 +92,27 @@ namespace Auth.API.Services
 
         private string GenerateJwtToken(User user)
         {
-            Console.WriteLine($"JWT Secret used: '{_jwtSecret}'");
             var tokenHandler = new JwtSecurityTokenHandler();
             var key = Encoding.ASCII.GetBytes(_jwtSecret);
 
-            // Simplified claims setup that aligns with the token validation parameters
+            // Claims usando o padrão JwtRegisteredClaimNames para melhor compatibilidade
             var claims = new List<Claim>
             {
-                new Claim(ClaimTypes.NameIdentifier, user.Id),
-                new Claim(ClaimTypes.Email, user.Email),
-                new Claim(ClaimTypes.Name, user.Username),
-                new Claim(ClaimTypes.Role, user.Role)
+                new Claim(JwtRegisteredClaimNames.Sub, user.Id),
+                new Claim(JwtRegisteredClaimNames.Email, user.Email),
+                new Claim(JwtRegisteredClaimNames.Name, user.Username),
+                new Claim(ClaimTypes.Role, user.Role) // Mantemos ClaimTypes.Role para autorização
             };
 
             var tokenDescriptor = new SecurityTokenDescriptor
             {
                 Subject = new ClaimsIdentity(claims),
                 Expires = DateTime.UtcNow.AddMinutes(_jwtExpirationMinutes),
-                SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature),
                 Issuer = "Auth.API",
-                Audience = "OdontoprevClients"
+                Audience = "OdontoprevClients",
+                SigningCredentials = new SigningCredentials(
+                    new SymmetricSecurityKey(key), 
+                    SecurityAlgorithms.HmacSha256Signature)
             };
 
             var token = tokenHandler.CreateToken(tokenDescriptor);

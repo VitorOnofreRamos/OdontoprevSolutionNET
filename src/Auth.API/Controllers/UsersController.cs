@@ -27,7 +27,10 @@ namespace Auth.API.Controllers
         [HttpGet("me")]
         public async Task<ActionResult<UserDTO>> GetCurrentUser()
         {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            // Busca o ID do usuário nas claims, usando tanto o formato padrão quanto JWT
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? 
+                         User.FindFirst("sub")?.Value;
+                         
             if (string.IsNullOrEmpty(userId))
             {
                 return Unauthorized();
