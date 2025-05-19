@@ -9,6 +9,7 @@ namespace Challenge_Odontoprev_API.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
+[Authorize]
 public class HistoricoController : ControllerBase
 {
     private readonly _IRepository<HistoricoConsulta> _repository;

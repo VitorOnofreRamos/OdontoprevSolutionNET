@@ -9,6 +9,7 @@ namespace Challenge_Odontoprev_API.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
+[Authorize]
 public class ConsultaController : ControllerBase
 {
     private readonly _IRepository<Consulta> _repository;
