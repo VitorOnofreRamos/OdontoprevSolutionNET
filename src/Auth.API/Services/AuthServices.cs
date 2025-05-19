@@ -95,15 +95,13 @@ namespace Auth.API.Services
             var tokenHandler = new JwtSecurityTokenHandler();
             var key = Encoding.ASCII.GetBytes(_jwtSecret);
 
-            // Criando claims personalizadas com os nomes exatos que você deseja
+            // Simplified claims setup that aligns with the token validation parameters
             var claims = new List<Claim>
             {
-                new Claim("_id", user.Id),
-                new Claim("Email", user.Email),
-                new Claim("Username", user.Username),
-                new Claim("Role", user.Role),
-                // Mantemos as claims de sistema para o funcionamento da autorização
-                new Claim(ClaimTypes.Role, user.Role) // Necessário para [Authorize(Roles = "Admin")] funcionar
+                new Claim(ClaimTypes.NameIdentifier, user.Id),
+                new Claim(ClaimTypes.Email, user.Email),
+                new Claim(ClaimTypes.Name, user.Username),
+                new Claim(ClaimTypes.Role, user.Role)
             };
 
             var tokenDescriptor = new SecurityTokenDescriptor
@@ -111,6 +109,8 @@ namespace Auth.API.Services
                 Subject = new ClaimsIdentity(claims),
                 Expires = DateTime.UtcNow.AddMinutes(_jwtExpirationMinutes),
                 SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature),
+                Issuer = "Auth.API",
+                Audience = "OdontoprevClients"
             };
 
             var token = tokenHandler.CreateToken(tokenDescriptor);

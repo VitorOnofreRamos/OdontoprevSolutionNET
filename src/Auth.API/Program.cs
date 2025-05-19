@@ -28,17 +28,22 @@ builder.Services.AddSingleton<AuthService>(provider =>
 
 // Configuração do JWT
 var jwtSecret = builder.Configuration["JwtSettings:Secret"];
+if (string.IsNullOrEmpty(jwtSecret))
+{
+    throw new InvalidOperationException("JWT Secret is not configured.");
+}
+
 var key = Encoding.ASCII.GetBytes(jwtSecret);
-builder.Services.AddAuthentication(x =>
+builder.Services.AddAuthentication(options =>
 {
-    x.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    x.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
 })
-.AddJwtBearer(x =>
+.AddJwtBearer(options =>
 {
-    x.RequireHttpsMetadata = false;
-    x.SaveToken = true;
-    x.TokenValidationParameters = new TokenValidationParameters
+    options.RequireHttpsMetadata = false;
+    options.SaveToken = true;
+    options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuerSigningKey = true,
         IssuerSigningKey = new SymmetricSecurityKey(key),
@@ -46,16 +51,37 @@ builder.Services.AddAuthentication(x =>
         ValidIssuer = "Auth.API",
         ValidateAudience = true,
         ValidAudience = "OdontoprevClients",
-        RoleClaimType = "Role"
+        ValidateLifetime = true,
+        ClockSkew = TimeSpan.Zero
     };
-    x.Events = new JwtBearerEvents
+    options.Events = new JwtBearerEvents
     {
         OnAuthenticationFailed = context =>
         {
             Console.WriteLine("Token inválido: " + context.Exception.Message);
             return Task.CompletedTask;
+        },
+        OnMessageReceived = context =>
+        {
+            Console.WriteLine($"JWT Bearer: Mensagem recebida - {context.Request.Headers["Authorization"]}");
+            return Task.CompletedTask;
+        },
+        OnTokenValidated = context =>
+        {
+            Console.WriteLine("Token validado com sucesso!");
+            return Task.CompletedTask;
         }
     };
+});
+
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
 });
 
 builder.Services.AddControllers();
@@ -67,11 +93,12 @@ builder.Services.AddSwaggerGen(c =>
     // Adiciona a configuração de segurança do JWT
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
-        Description = "JWT Authorization header usando o esquema Bearer. Exemplo: \"Authorization: Bearer {token}\"",
+        Description = "JWT Authorization header usando o esquema Bearer. Exemplo: \"Bearer {token}\"",
         Name = "Authorization",
         In = ParameterLocation.Header,
-        Type = SecuritySchemeType.ApiKey,
-        Scheme = "Bearer"
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT"
     });
 
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
@@ -92,11 +119,14 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
-// LOG DO HEADER AUTHORIZATION
+// Adiciona middleware para verificar o header de autorização
 app.Use(async (context, next) =>
 {
     var authHeader = context.Request.Headers["Authorization"].ToString();
-    Console.WriteLine($"Authorization header recebido: '{authHeader}'");
+    if (!string.IsNullOrEmpty(authHeader))
+    {
+        Console.WriteLine($"Authorization header recebido: '{authHeader}'");
+    }
     await next();
 });
 
@@ -108,8 +138,12 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseCors();
+
+// É importante que UseAuthentication venha antes do UseAuthorization
 app.UseAuthentication();
 app.UseAuthorization();
+
 app.MapControllers();
 
 app.Run();
