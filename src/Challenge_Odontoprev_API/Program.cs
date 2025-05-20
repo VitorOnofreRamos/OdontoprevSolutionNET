@@ -5,6 +5,7 @@ using Challenge_Odontoprev_API.Mappings;
 using Challenge_Odontoprev_API.Models;
 using Challenge_Odontoprev_API.Repositories;
 using Challenge_Odontoprev_API.Services;
+using Challenge_Odontoprev_API.ML.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -139,6 +140,8 @@ builder.Services.AddScoped<_IRepository<Paciente>, _Repository<Paciente>>();
 builder.Services.AddScoped<_IRepository<Dentista>, _Repository<Dentista>>();
 builder.Services.AddScoped<_IRepository<Consulta>, _Repository<Consulta>>();
 builder.Services.AddScoped<_IRepository<HistoricoConsulta>, _Repository<HistoricoConsulta>>();
+
+builder.Services.AddSingleton<ConsultaCancelamentoService>();
 
 // Configurar Unit of Work
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
