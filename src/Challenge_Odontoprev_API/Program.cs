@@ -1,6 +1,6 @@
-// Challenge_Odontoprev_API/Program.cs
-using Challenge_Odontoprev_API;
+//Program.cs
 using Challenge_Odontoprev_API.Infrastructure;
+using Challenge_Odontoprev_API.MachineLearning;
 using Challenge_Odontoprev_API.Mappings;
 using Challenge_Odontoprev_API.Models;
 using Challenge_Odontoprev_API.Repositories;
@@ -143,7 +143,17 @@ builder.Services.AddScoped<_IRepository<HistoricoConsulta>, _Repository<Historic
 // Configurar Unit of Work
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
+builder.Services.AddSingleton<SentimentAnalysisService>();
+builder.Services.AddScoped<IHistoricoAnalysisService, HistoricoAnalysisService>();
+
 var app = builder.Build();
+
+app.Lifetime.ApplicationStarted.Register(async () =>
+{
+    using var scope = app.Services.CreateScope();
+    var sentimentService = scope.ServiceProvider.GetRequiredService<Challenge_Odontoprev_API.MachineLearning.SentimentAnalysisService>();
+    await sentimentService.LoadModelAsync();
+});
 
 // Configurar o pipeline de requisi��es HTTP
 if (app.Environment.IsDevelopment())
