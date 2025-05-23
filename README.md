@@ -8,10 +8,24 @@ Uma solução completa para gerenciamento de clínicas odontológicas com **aná
 
 ```
 OdontoprevSolution/
-├── 🔐 Auth.API/                     # Autenticação JWT + MongoDB
-├── 🦷 Challenge_Odontoprev_API/     # API Principal + Oracle DB
-├── 🧪 Challenge_Odontoprev_API.Tests/ # Testes de Machine Learning
-└── 📚 Database-Scripts/             # Scripts Oracle (PL/SQL)
+├── Auth.API/                       # Autenticação JWT + MongoDB
+│   ├── Controller/
+│   ├── DTOs/
+│   ├── Models/
+│   ├── Services/
+│   └── Settings/
+├── Challenge_Odontoprev_API/       # API Principal + Oracle DB
+│   ├── Controller/
+│   ├── DTOs/
+│   ├── Infraestructure/
+│   ├── MachineLearning/
+│   ├── Mappings/
+│   ├── Models/
+│   ├── Repositories/
+│   ├── Services/
+│   └── DTOs/
+└── Challenge_Odontoprev_API.Tests/ # Testes de Machine Learning
+    └── MachineLearning/
 ```
 
 ### 🔗 Fluxo de Arquitetura
@@ -56,11 +70,13 @@ graph TD
 
 #### **Endpoints de Autenticação:**
 ```http
-POST /api/auth/register     # Registrar usuário
-POST /api/auth/login        # Login e geração do JWT
-POST /api/auth/refresh      # Renovar token
-GET  /api/auth/profile      # Perfil do usuário
-PUT  /api/auth/profile      # Atualizar perfil
+POST    /api/Auth/register     # Registrar usuário e geração do JWT
+POST    /api/auth/login        # Login e geração do JWT
+GET     /api/Users             # Pesquisar por todos os usuários (Admin)
+GET     /api/Users/me          # Perfil do usuário logado no momento
+GET     /api/Users/{id}        # Pesquisar usuário por ID (Admin)
+PUT     /api/Users/{id}        # Atualzar usuário por ID (Admin)
+DELETE  /api/Users/{id}        # Deletar usuário por ID (Admin)
 ```
 
 ### **Para saber como utilizar os Tokens gerados pela API, clique aqui -> [https://youtu.be/v-s4VEMBgRo](https://youtu.be/v-s4VEMBgRo)**
