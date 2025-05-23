@@ -79,8 +79,6 @@ PUT     /api/Users/{id}        # Atualzar usuário por ID (Admin)
 DELETE  /api/Users/{id}        # Deletar usuário por ID (Admin)
 ```
 
-### **Para saber como utilizar os Tokens gerados pela API, clique aqui -> [https://youtu.be/v-s4VEMBgRo](https://youtu.be/v-s4VEMBgRo)**
-
 ### 🦷 **Challenge_Odontoprev_API - API Principal**
 
 #### **Características:**
@@ -231,8 +229,12 @@ cd OdontoprevSolution
 ### **2. Configurar Banco de Dados Oracle**
 
 #### **Executar Scripts na Ordem:**
+Esse projeto realiza as operações **CRUD** através de procedures **PL/SQL**. As procedures estão contidas no arquivo `Pkg_Procedures_CRUD_Odontoprev` e são executadas através do Entity Framework Core, conforme demonstrado nas classes de repositório.
+Para consultar e utilizar as procedures, acesse o repositório [Data-Base-Odontoprev](https://github.com/VitorOnofreRamos/Data-Base-Odontoprev).
+
+**ATENÇÃO ⚠️: É de extrema importância que o usuário execute os scripts na seguinte ordem antes de utilizar a API:**
+
 ```bash
-# ⚠️ IMPORTANTE: Execute na ordem exata!
 1. PkgFunAuxiliares.sql              # Funções auxiliares
 2. PkgFunValidacaoOdontoprev.sql     # Funções de validação  
 3. PkgProceduresCRUDOdontoprev.sql   # Procedures CRUD
@@ -293,14 +295,14 @@ cd OdontoprevSolutionNET/src/Challenge_Odontoprev_API.Tests && dotnet restore
 ```bash
 cd OdontoprevSolutionNET/src/Auth.API
 dotnet run
-# Disponível em: https://localhost:5032
+# Disponível em: https://localhost:5032/swagger
 ```
 
 #### **Terminal 2 - API Principal:**
 ```bash
 cd OdontoprevSolutionNET/src/Challenge_Odontoprev_API
 dotnet run  
-# Disponível em: https://localhost:5062
+# Disponível em: https://localhost:5062/swagger
 ```
 
 ## 🔐 Fluxo de Autenticação
@@ -336,6 +338,9 @@ Content-Type: application/json
 GET https://localhost:5062/api/paciente
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
+
+#### ⚠️ Para saber como utilizar os Tokens gerados pela API no Swagger: 
+### **[Clique aqui -> https://youtu.be/v-s4VEMBgRo](https://youtu.be/v-s4VEMBgRo)**
 
 ## 🧪 Executar Testes
 
