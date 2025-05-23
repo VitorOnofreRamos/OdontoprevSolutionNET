@@ -10,6 +10,7 @@ public interface IHistoricoAnalysisService
     Task<IEnumerable<HistoricoSentimentResult>> AnalyzeHistoricosByPacienteId(long pacienteId);
     Task<IEnumerable<HistoricoSentimentResult>> AnalyzeHistoricosByConsultaId(long consultaId);
     Task<Dictionary<string, int>> GetSentimentStatisticsByPaciente(long pacienteId);
+    Task<bool> IsModelReady();
 }
 
 public class HistoricoAnalysisService : IHistoricoAnalysisService
@@ -31,42 +32,94 @@ public class HistoricoAnalysisService : IHistoricoAnalysisService
         _logger = logger;
     }
 
+    public async Task<bool> IsModelReady()
+    {
+        try
+        {
+            var testResult = _sentimentService.AnalyzeSentiment("teste");
+            return testResult != null;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     public async Task<IEnumerable<HistoricoSentimentResult>> AnalyzeHistoricosByPacienteId(long pacienteId)
     {
         try
         {
+            _logger.LogInformation($"Iniciando análise de históricos para paciente ID: {pacienteId}");
+
+            // Verificar se o modelo está pronto
+            if (!await IsModelReady())
+            {
+                throw new InvalidOperationException("O modelo de análise de sentimentos não está pronto.");
+            }
+
             // Obtém todas as consultas do paciente
             var consultas = (await _consultaRepository.GetAll())
                 .Where(c => c.ID_Paciente == pacienteId)
                 .ToList();
 
+            _logger.LogInformation($"Encontradas {consultas.Count} consultas para o paciente {pacienteId}");
+
             if (!consultas.Any())
             {
+                _logger.LogWarning($"Nenhuma consulta encontrada para o paciente {pacienteId}");
                 return Enumerable.Empty<HistoricoSentimentResult>();
             }
 
             // Obtém todos os históricos relacionados às consultas do paciente
             var consultasIds = consultas.Select(c => c.Id).ToList();
             var historicos = (await _historicoRepository.GetAll())
-                .Where(h => consultasIds.Contains(h.ID_Consulta) && !string.IsNullOrEmpty(h.Observacoes))
+                .Where(h => consultasIds.Contains(h.ID_Consulta) && !string.IsNullOrWhiteSpace(h.Observacoes))
                 .ToList();
+
+            _logger.LogInformation($"Encontrados {historicos.Count} históricos com observações para análise");
+
+            if (!historicos.Any())
+            {
+                _logger.LogWarning($"Nenhum histórico com observações encontrado para o paciente {pacienteId}");
+                return Enumerable.Empty<HistoricoSentimentResult>();
+            }
 
             // Analisa o sentimento de cada histórico
             var results = new List<HistoricoSentimentResult>();
+            var processedCount = 0;
+
             foreach (var historico in historicos)
             {
-                var sentimentResult = _sentimentService.AnalyzeSentiment(historico.Observacoes);
-                results.Add(new HistoricoSentimentResult
+                try
                 {
-                    HistoricoId = historico.Id,
-                    ConsultaId = historico.ID_Consulta,
-                    DataAtendimento = historico.Data_Atendimento,
-                    MotivoConsulta = historico.Motivo_Consulta,
-                    Observacoes = historico.Observacoes,
-                    SentimentResult = sentimentResult
-                });
+                    var previewText = string.IsNullOrEmpty(historico.Observacoes) ? "" :
+                                     historico.Observacoes.Length > 50 ? historico.Observacoes.Substring(0, 50) + "..." : historico.Observacoes;
+                    _logger.LogDebug($"Analisando histórico ID: {historico.Id} - Texto: '{previewText}'");
+
+                    var sentimentResult = _sentimentService.AnalyzeSentiment(historico.Observacoes);
+
+                    results.Add(new HistoricoSentimentResult
+                    {
+                        HistoricoId = historico.Id,
+                        ConsultaId = historico.ID_Consulta,
+                        DataAtendimento = historico.Data_Atendimento,
+                        MotivoConsulta = historico.Motivo_Consulta,
+                        Observacoes = historico.Observacoes,
+                        SentimentResult = sentimentResult
+                    });
+
+                    processedCount++;
+                    _logger.LogDebug($"Histórico {historico.Id} analisado: {sentimentResult.SentimentCategory} (Confiança: {sentimentResult.Confidence:F2})");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, $"Erro ao analisar histórico ID: {historico.Id}");
+                    // Continue com os outros históricos mesmo se um falhar
+                    continue;
+                }
             }
 
+            _logger.LogInformation($"Análise concluída. {processedCount} de {historicos.Count} históricos processados com sucesso");
             return results;
         }
         catch (Exception ex)
@@ -80,32 +133,60 @@ public class HistoricoAnalysisService : IHistoricoAnalysisService
     {
         try
         {
+            _logger.LogInformation($"Iniciando análise de históricos para consulta ID: {consultaId}");
+
+            // Verificar se o modelo está pronto
+            if (!await IsModelReady())
+            {
+                throw new InvalidOperationException("O modelo de análise de sentimentos não está pronto.");
+            }
+
             // Obtém todos os históricos da consulta específica
             var historicos = (await _historicoRepository.GetAll())
-                .Where(h => h.ID_Consulta == consultaId && !string.IsNullOrEmpty(h.Observacoes))
+                .Where(h => h.ID_Consulta == consultaId && !string.IsNullOrWhiteSpace(h.Observacoes))
                 .ToList();
+
+            _logger.LogInformation($"Encontrados {historicos.Count} históricos com observações para a consulta {consultaId}");
 
             if (!historicos.Any())
             {
+                _logger.LogWarning($"Nenhum histórico com observações encontrado para a consulta {consultaId}");
                 return Enumerable.Empty<HistoricoSentimentResult>();
             }
 
             // Analisa o sentimento de cada histórico
             var results = new List<HistoricoSentimentResult>();
+            var processedCount = 0;
+
             foreach (var historico in historicos)
             {
-                var sentimentResult = _sentimentService.AnalyzeSentiment(historico.Observacoes);
-                results.Add(new HistoricoSentimentResult
+                try
                 {
-                    HistoricoId = historico.Id,
-                    ConsultaId = historico.ID_Consulta,
-                    DataAtendimento = historico.Data_Atendimento,
-                    MotivoConsulta = historico.Motivo_Consulta,
-                    Observacoes = historico.Observacoes,
-                    SentimentResult = sentimentResult
-                });
+                    _logger.LogDebug($"Analisando histórico ID: {historico.Id}");
+
+                    var sentimentResult = _sentimentService.AnalyzeSentiment(historico.Observacoes);
+
+                    results.Add(new HistoricoSentimentResult
+                    {
+                        HistoricoId = historico.Id,
+                        ConsultaId = historico.ID_Consulta,
+                        DataAtendimento = historico.Data_Atendimento,
+                        MotivoConsulta = historico.Motivo_Consulta,
+                        Observacoes = historico.Observacoes,
+                        SentimentResult = sentimentResult
+                    });
+
+                    processedCount++;
+                    _logger.LogDebug($"Histórico {historico.Id} analisado: {sentimentResult.SentimentCategory} (Confiança: {sentimentResult.Confidence:F2})");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, $"Erro ao analisar histórico ID: {historico.Id}");
+                    continue;
+                }
             }
 
+            _logger.LogInformation($"Análise concluída. {processedCount} de {historicos.Count} históricos processados com sucesso");
             return results;
         }
         catch (Exception ex)
@@ -119,14 +200,22 @@ public class HistoricoAnalysisService : IHistoricoAnalysisService
     {
         try
         {
+            _logger.LogInformation($"Obtendo estatísticas de sentimento para paciente ID: {pacienteId}");
+
             var historicoResults = await AnalyzeHistoricosByPacienteId(pacienteId);
 
             // Contagem de sentimentos positivos e negativos
+            var positiveCount = historicoResults.Count(r => r.SentimentResult.IsPositive);
+            var negativeCount = historicoResults.Count(r => !r.SentimentResult.IsPositive);
+
             var stats = new Dictionary<string, int>
             {
-                { "Positivo", historicoResults.Count(r => r.SentimentResult.IsPositive) },
-                { "Negativo", historicoResults.Count(r => !r.SentimentResult.IsPositive) }
+                { "Positivo", positiveCount },
+                { "Negativo", negativeCount },
+                { "Total", positiveCount + negativeCount }
             };
+
+            _logger.LogInformation($"Estatísticas para paciente {pacienteId}: {positiveCount} positivos, {negativeCount} negativos, {stats["Total"]} total");
 
             return stats;
         }

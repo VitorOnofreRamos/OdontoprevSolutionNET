@@ -150,9 +150,21 @@ var app = builder.Build();
 
 app.Lifetime.ApplicationStarted.Register(async () =>
 {
-    using var scope = app.Services.CreateScope();
-    var sentimentService = scope.ServiceProvider.GetRequiredService<Challenge_Odontoprev_API.MachineLearning.SentimentAnalysisService>();
-    await sentimentService.LoadModelAsync();
+    try
+    {
+        using var scope = app.Services.CreateScope();
+        var sentimentService = scope.ServiceProvider.GetRequiredService<SentimentAnalysisService>();
+
+        Console.WriteLine("Inicializando modelo de análise de sentimentos...");
+        await sentimentService.LoadModelAsync();
+        Console.WriteLine("Modelo de análise de sentimentos inicializado com sucesso!");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"ERRO CRÍTICO: Falha ao inicializar modelo de ML: {ex.Message}");
+        Console.WriteLine($"Stack Trace: {ex.StackTrace}");
+        // Não pare a aplicação, mas registre o erro
+    }
 });
 
 // Configurar o pipeline de requisi��es HTTP
@@ -169,5 +181,25 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// Adicionar endpoint de saúde para verificar se o modelo está funcionando
+app.MapGet("/health/ml", async (SentimentAnalysisService sentimentService) =>
+{
+    try
+    {
+        var testResult = sentimentService.AnalyzeSentiment("Paciente muito satisfeito");
+        return Results.Ok(new
+        {
+            Status = "OK",
+            ModelLoaded = true,
+            TestResult = testResult,
+            Message = "Modelo de ML funcionando corretamente"
+        });
+    }
+    catch (Exception ex)
+    {
+        return Results.Problem($"Erro no modelo de ML: {ex.Message}");
+    }
+});
 
 app.Run();
