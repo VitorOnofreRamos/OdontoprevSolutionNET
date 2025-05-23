@@ -63,6 +63,8 @@ GET  /api/auth/profile      # Perfil do usuário
 PUT  /api/auth/profile      # Atualizar perfil
 ```
 
+### **Para saber como utilizar os Tokens gerados pela API, clique aqui -> [https://youtu.be/vfD20FaQ2Gk](https://youtu.be/vfD20FaQ2Gk)**
+
 ### 🦷 **Challenge_Odontoprev_API - API Principal**
 
 #### **Características:**
