@@ -462,8 +462,8 @@ JWT_SECRET=mesma_chave_auth_api
 | Nome | RM | GitHub |
 |------|-------|---------|
 | Vitor Onofre Ramos | RM553241 | [@VitorOnofreRamos](https://github.com/VitorOnofreRamos) |
-| Pedro Henrique | RM553801 | [@PedroHenrique](https://github.com/pedrohenrique) |
-| Beatriz Silva | RM552600 | [@BeatrizSilva](https://github.com/beatrizsilva) |
+| Pedro Henrique | RM553801 | [@PedroHenrique](https://github.com/Araujopedro) |
+| Beatriz Silva | RM552600 | [@BeatrizSilva](https://github.com/bia98silva) |
 
 ## 🐛 Problemas Conhecidos
 
@@ -471,12 +471,6 @@ JWT_SECRET=mesma_chave_auth_api
 - **Performance**: Treinamento inicial da IA leva ~10-15 segundos
 - **Memória**: Modelo ML.NET carregado usa ~50-80MB RAM
 - **JWT**: Tokens não são invalidados no logout (usar blacklist para produção)
-
-## 📞 Suporte
-
-- **Email**: suporte@odontoprev.com.br
-- **Issues**: [GitHub Issues](https://github.com/VitorOnofreRamos/OdontoprevSolution/issues)
-- **Wiki**: [Documentação Técnica](https://github.com/VitorOnofreRamos/OdontoprevSolution/wiki)
 
 ## 📄 Licença
 
