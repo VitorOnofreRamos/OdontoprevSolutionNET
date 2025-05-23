@@ -235,7 +235,7 @@ cd OdontoprevSolution
 ```json
 {
   "ConnectionStrings": {
-    "MongoDB": "mongodb://localhost:27017/OdontoprevAuth"
+    "MongoDB": "mongodb://localhost:27017"
   },
   "JwtSettings": {
     "Secret": "sua_chave_secreta_jwt_com_pelo_menos_32_caracteres",
@@ -266,23 +266,23 @@ cd OdontoprevSolution
 dotnet restore
 
 # Ou individualmente
-cd Auth.API && dotnet restore
-cd ../Challenge_Odontoprev_API && dotnet restore  
-cd ../Challenge_Odontoprev_API.Tests && dotnet restore
+cd OdontoprevSolutionNET/src/Auth.API && dotnet restore
+cd OdontoprevSolutionNET/src/Challenge_Odontoprev_API && dotnet restore  
+cd OdontoprevSolutionNET/src/Challenge_Odontoprev_API.Tests && dotnet restore
 ```
 
 ### **6. Executar as Aplicações**
 
 #### **Terminal 1 - Auth.API:**
 ```bash
-cd Auth.API
+cd OdontoprevSolutionNET/src/Auth.API
 dotnet run
-# Disponível em: https://localhost:5001
+# Disponível em: https://localhost:5032
 ```
 
 #### **Terminal 2 - API Principal:**
 ```bash
-cd Challenge_Odontoprev_API
+cd OdontoprevSolutionNET/src/Challenge_Odontoprev_API
 dotnet run  
 # Disponível em: https://localhost:5062
 ```
