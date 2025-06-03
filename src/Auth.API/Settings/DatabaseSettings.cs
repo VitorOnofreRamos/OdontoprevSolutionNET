@@ -1,4 +1,5 @@
-﻿namespace Auth.API.Settings
+﻿//Settings/DatabaseSettings.cs
+namespace Auth.API.Settings
 {
     public class DatabaseSettings
     {

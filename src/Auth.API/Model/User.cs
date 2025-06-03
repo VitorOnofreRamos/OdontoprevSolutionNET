@@ -1,43 +1,56 @@
-﻿using MongoDB.Bson;
-using MongoDB.Bson.Serialization.Attributes;
-using System;
+﻿//Model/Users.cs
+using Auth.API.Data;
+using Auth.API.Models;
+using Microsoft.EntityFrameworkCore;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace Auth.API.Models
 {
+    [Table("GS_users")]
     public class User
     {
-        [BsonId]
-        [BsonRepresentation(BsonType.ObjectId)]
-        public string Id { get; set; }
+        [Key]
+        [Column("id")]
+        public int Id { get; set; }
 
-        [BsonElement("Username")]
-        public string Username { get; set; }
-
-        [BsonElement("Email")]
+        [Required]
+        [Column("email")]
+        [StringLength(255)]
         public string Email { get; set; }
 
-        [BsonElement("CPF")]
-        public string CPF { get; set; }
-
-        [BsonElement("PasswordHash")]
-        public byte[] PasswordHash { get; set; }
-
-        [BsonElement("PasswordSalt")]
-        public byte[] PasswordSalt { get; set; }
-
-        [BsonElement("Phone")]
+        [Column("phone")]
+        [StringLength(20)]
         public string Phone { get; set; }
 
-        [BsonElement("Role")]
+        [Required]
+        [Column("name")]
+        [StringLength(255)]
+        public string Name { get; set; }
+
+        [Column("password_hash")]
+        [StringLength(255)]
+        public string PasswordHash { get; set; }
+
+        [Column("role")]
+        [StringLength(20)]
         public string Role { get; set; }
 
-        [BsonElement("CreatedAt")]
-        public DateTime CreatedAt { get; set; }
+        [Column("is_active")]
+        [StringLength(1)]
+        public string IsActive { get; set; } = "Y";
 
-        [BsonElement("LastLogin")]
+        [Column("last_login")]
         public DateTime? LastLogin { get; set; }
 
-        [BsonElement("Active")]
-        public bool Active { get; set; }
+        [Required]
+        [Column("created_at")]
+        public DateTime CreatedAt { get; set; }
+
+        [Column("updated_at")]
+        public DateTime? UpdatedAt { get; set; }
+
+        [Column("organization_id")]
+        public int? OrganizationId { get; set; }
     }
 }

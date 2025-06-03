@@ -1,6 +1,7 @@
-﻿using Auth.API.Models;
-using Auth.API.Settings;
-using MongoDB.Driver;
+﻿//Services/UserService.cs
+using Auth.API.Data;
+using Auth.API.Models;
+using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -8,49 +9,82 @@ namespace Auth.API.Services
 {
     public class UserService
     {
-        private readonly IMongoCollection<User> _users;
+        private readonly ApplicationDbContext _context;
 
         public UserService(DatabaseSettings settings)
         {
-            var client = new MongoClient(settings.ConnectionString);
-            var database = client.GetDatabase(settings.DatabaseName);
-            _users = database.GetCollection<User>(settings.UsersCollectionName);
+            _context = context;
         }
 
-        public async Task<List<User>> GetAllAsync()
+        public async Task<User> GetByIdAsync(int id)
         {
-            return await _users.Find(_ => true).ToListAsync();
-        }
-
-        public async Task<User> GetByIdAsync(string id)
-        {
-            return await _users.Find(user => user.Id == id).FirstOrDefaultAsync();
+            return await _context.Users.FindAsync(id);
         }
 
         public async Task<User> GetByEmailAsync(string email)
         {
-            return await _users.Find(user => user.Email == email).FirstOrDefaultAsync();
+            return await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
         }
 
-        public async Task<User> CreateAsync(User user)
+        public async Task<IEnumerable<User>> GetAllAsync()
         {
-            await _users.InsertOneAsync(user);
-            return user;
+            return await _context.Users.ToListAsync();
         }
 
-        public async Task UpdateAsync(string id, User userIn)
+        public async Task<User> UpdateAsync(int id, User user)
         {
-            await _users.ReplaceOneAsync(user => user.Id == id, userIn);
+            var existingUser = await _context.Users.FindAsync(id);
+            if (existingUser == null)
+                return null;
+
+            existingUser.Name = user.Name ?? existingUser.Name;
+            existingUser.Email = user.Email ?? existingUser.Email;
+            existingUser.Phone = user.Phone ?? existingUser.Phone;
+            existingUser.Role = user.Role ?? existingUser.Role;
+            existingUser.IsActive = user.IsActive ?? existingUser.IsActive;
+            existingUser.OrganizationId = user.OrganizationId ?? existingUser.OrganizationId;
+            existingUser.UpdatedAt = DateTime.UtcNow;
+
+            if (!string.IsNullOrEmpty(user.PasswordHash))
+            {
+                existingUser.PasswordHash = user.PasswordHash;
+            }
+
+            if (user.LastLogin.HasValue)
+            {
+                existingUser.LastLogin = user.LastLogin;
+            }
+
+            await _context.SaveChangesAsync();
+            return existingUser;
         }
 
-        public async Task RemoveAsync(User userIn)
+        public async Task<bool> DeleteAsync(int id)
         {
-            await _users.DeleteOneAsync(user => user.Id == userIn.Id);
+            var user = await _context.Users.FindAsync(id);
+            if (user == null)
+                return false;
+
+            _context.Users.Remove(user);
+            await _context.SaveChangesAsync();
+            return true;
         }
 
-        public async Task RemoveAsync(string id)
+        public async Task<bool> DeactivateAsync(int id)
         {
-            await _users.DeleteOneAsync(user => user.Id == id);
+            var user = await _context.Users.FindAsync(id);
+            if (user == null)
+                return false;
+
+            user.IsActive = "N";
+            user.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task<bool> EmailExistsAsync(string email)
+        {
+            return await _context.Users.AnyAsync(u => u.Email == email);
         }
     }
 }

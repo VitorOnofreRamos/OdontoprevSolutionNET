@@ -7,14 +7,11 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddControllers();
+
 // Configurações do banco de dados
-var databaseSettings = new DatabaseSettings
-{
-    ConnectionString = builder.Configuration.GetSection("DatabaseSettings:ConnectionString").Value,
-    DatabaseName = "OdontoprevAuth",
-    UsersCollectionName = "Users"
-};
-builder.Services.AddSingleton(databaseSettings);
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseOracle(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // Configurações de serviços
 builder.Services.AddSingleton<UserService>();

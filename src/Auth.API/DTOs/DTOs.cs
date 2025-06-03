@@ -1,41 +1,65 @@
-﻿namespace Auth.API.DTOs
+﻿//DTOs/DTOs.cs
+namespace Auth.API.DTOs
 {
     public class UserDTO
     {
         public string Id { get; set; }
-        public string Username { get; set; }
+        public string Name { get; set; }
         public string Email { get; set; }
-        public string CPF { get; set; }
         public string Phone { get; set; }
         public string Role { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? LastLogin { get; set; }
         public bool Active { get; set; }
+        public int? OrganizationId { get; set; }
     }
 
     public class RegisterDTO
     {
-        public string Username { get; set; }
+        [Required(ErrorMessage = "Nome é obrigatório")]
+        [StringLength(255, ErrorMessage = "Nome deve ter no máximo 255 caracteres")]
+        public string Name { get; set; }
+
+        [Required(ErrorMessage = "Email é obrigatório")]
+        [EmailAddress(ErrorMessage = "Email deve ter um formato válido")]
+        [StringLength(255, ErrorMessage = "Email deve ter no máximo 255 caracteres")]
         public string Email { get; set; }
+
+        [Required(ErrorMessage = "Senha é obrigatória")]
+        [StringLength(100, MinimumLength = 6, ErrorMessage = "Senha deve ter entre 6 e 100 caracteres")]
         public string Password { get; set; }
-        public string CPF { get; set; }
+
+        [StringLength(20, ErrorMessage = "Telefone deve ter no máximo 20 caracteres")]
         public string Phone { get; set; }
+
+        public int? OrganizationId { get; set; }
     }
 
     public class LoginDTO
     {
+        [Required(ErrorMessage = "Email é obrigatório")]
+        [EmailAddress(ErrorMessage = "Email deve ter um formato válido")]
         public string Email { get; set; }
+
+        [Required(ErrorMessage = "Senha é obrigatória")]
         public string Password { get; set; }
     }
 
     public class UpdateUserDTO
     {
-        public string Username { get; set; }
+        [StringLength(255, ErrorMessage = "Nome deve ter no máximo 255 caracteres")]
+        public string Name { get; set; }
+
+        [EmailAddress(ErrorMessage = "Email deve ter um formato válido")]
+        [StringLength(255, ErrorMessage = "Email deve ter no máximo 255 caracteres")]
         public string Email { get; set; }
-        public string CPF { get; set; }
+
+        [StringLength(20, ErrorMessage = "Telefone deve ter no máximo 20 caracteres")]
         public string Phone { get; set; }
+
         public string Role { get; set; }
-        public bool Active { get; set; }
+        public bool IsActive { get; set; }
+        public int? OrganizationId { get; set; }
     }
 
     public class AuthResponseDTO

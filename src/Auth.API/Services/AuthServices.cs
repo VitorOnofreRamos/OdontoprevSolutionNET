@@ -1,4 +1,5 @@
-﻿using Auth.API.Models;
+﻿//Services/AuthService.cs
+using Auth.API.Models;
 using Auth.API.DTOs;
 using System;
 using System.IdentityModel.Tokens.Jwt;
@@ -34,21 +35,20 @@ namespace Auth.API.Services
             }
 
             // Criar hash da senha
-            CreatePasswordHash(registerDto.Password, out byte[] passwordHash, out byte[] passwordSalt);
+            var passwordHash = CreatePasswordHash(registerDto.Password);
 
             // Criar novo usuário
             var user = new User
             {
-                Username = registerDto.Username,
+                Name = registerDto.Name,
                 Email = registerDto.Email,
-                CPF = registerDto.CPF,
                 PasswordHash = passwordHash,
-                PasswordSalt = passwordSalt,
                 Phone = registerDto.Phone,
-                Role = "User", // Padrão é usuário comum
+                Role = "DONOR", // Padrão é DONOR
                 CreatedAt = DateTime.UtcNow,
                 LastLogin = null,
-                Active = true
+                IsActive = "Y",
+                OrganizationId = registerDto.OrganizationId
             };
 
             await _userService.CreateAsync(user);
@@ -66,12 +66,12 @@ namespace Auth.API.Services
         public async Task<AuthResponseDTO> LoginAsync(LoginDTO loginDto)
         {
             var user = await _userService.GetByEmailAsync(loginDto.Email);
-            if (user == null)
+            if (user == null || user.IsActive != "Y")
             {
                 return null;
             }
 
-            if (!VerifyPasswordHash(loginDto.Password, user.PasswordHash, user.PasswordSalt))
+            if (!VerifyPasswordHash(loginDto.Password, user.PasswordHash))
             {
                 return null;
             }
@@ -98,11 +98,17 @@ namespace Auth.API.Services
             // Claims usando o padrão JwtRegisteredClaimNames para melhor compatibilidade
             var claims = new List<Claim>
             {
-                new Claim(JwtRegisteredClaimNames.Sub, user.Id),
+                new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
                 new Claim(JwtRegisteredClaimNames.Email, user.Email),
-                new Claim(JwtRegisteredClaimNames.Name, user.Username),
+                new Claim(JwtRegisteredClaimNames.Name, user.Name),
                 new Claim(ClaimTypes.Role, user.Role) // Mantemos ClaimTypes.Role para autorização
             };
+
+            // Adicionar organization_id se existir
+            if (user.OrganizationId.HasValue)
+            {
+                claims.Add(new Claim("organization_id", user.OrganizationId.Value.ToString()));
+            }
 
             var tokenDescriptor = new SecurityTokenDescriptor
             {
@@ -119,26 +125,16 @@ namespace Auth.API.Services
             return tokenHandler.WriteToken(token);
         }
 
-        private void CreatePasswordHash(string password, out byte[] passwordHash, out byte[] passwordSalt)
+        private string CreatePasswordHash(string password)
         {
-            using (var hmac = new HMACSHA512())
-            {
-                passwordSalt = hmac.Key;
-                passwordHash = hmac.ComputeHash(Encoding.UTF8.GetBytes(password));
-            }
+            // Usando BCrypt para hash de senha (mais seguro que HMAC)
+            return BCrypt.Net.BCrypt.HashPassword(password);
         }
 
-        private bool VerifyPasswordHash(string password, byte[] storedHash, byte[] storedSalt)
+        private bool VerifyPasswordHash(string password, string storedHash)
         {
-            using (var hmac = new HMACSHA512(storedSalt))
-            {
-                var computedHash = hmac.ComputeHash(Encoding.UTF8.GetBytes(password));
-                for (int i = 0; i < computedHash.Length; i++)
-                {
-                    if (computedHash[i] != storedHash[i]) return false;
-                }
-            }
-            return true;
+            // Verificar senha usando BCrypt
+            return BCrypt.Net.BCrypt.Verify(password, storedHash);
         }
 
         private UserDTO MapToUserDto(User user)
@@ -146,14 +142,14 @@ namespace Auth.API.Services
             return new UserDTO
             {
                 Id = user.Id,
-                Username = user.Username,
+                Name = user.Name,
                 Email = user.Email,
-                CPF = user.CPF,
                 Phone = user.Phone,
                 Role = user.Role,
                 CreatedAt = user.CreatedAt,
                 LastLogin = user.LastLogin,
-                Active = user.Active
+                IsActive = user.IsActive == "Y",
+                OrganizationId = user.OrganizationId
             };
         }
     }
